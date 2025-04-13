@@ -101,8 +101,9 @@ ORDER_QUEUE_RECONNECT_LIMIT=10
 ORDER_QUEUE_NAME=orders
 ```
 
-  - ORDER_QUEUE_HOSTNAME: Found under Namespace Overview → Essentials → Host name
-  - ORDER_QUEUE_PASSWORD: Get it from Shared access policies → sender → Primary key
+- ORDER_QUEUE_HOSTNAME: Found under Namespace Overview → Essentials → Host name
+
+- ORDER_QUEUE_PASSWORD: Get it from Shared access policies → sender → Primary key
 
 ⚠️ **Important**: Do not commit your `.env` file to version control. It contains sensitive credentials.
 

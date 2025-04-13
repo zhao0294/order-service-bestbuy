@@ -37,11 +37,11 @@ This app connect to Azure Service Bus using AMQP 1.0, and you will need to provi
 
 ### option 1: Using Azure CLI
 
-#### 🛠️ Step 1: Create a Resource Group
+#### Step 1: Create a Resource Group
 
 To begin, create a resource group using the Azure CLI:
 
-``````bash
+```bash
 az group create --name <resource-group-name> --location <location>
 ```
 

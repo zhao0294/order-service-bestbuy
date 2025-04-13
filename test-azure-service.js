@@ -9,27 +9,27 @@ async function receiveMessages() {
   const receiver = sbClient.createReceiver(queueName);
 
   try {
-    console.log("👂 正在接收消息...");
+    console.log("👂 Listening for messages...");
 
-    // 接收一条消息
+    // Receive messages
     const receivedMessage = await receiver.receiveMessages(1, { maxWaitTimeInMs: 5000 });
 
     if (receivedMessage.length > 0) {
-      console.log("📬 接收到的消息：", receivedMessage[0].body);
-      // 处理完消息后，完成它
+      console.log("📬 Message received:", receivedMessage[0].body);
+      // Complete the message after processing
       await receiver.completeMessage(receivedMessage[0]);
     } else {
-      console.log("没有接收到消息！");
+      console.log("No messages received!");
     }
   } catch (err) {
-    console.error("🚨 消息接收失败：", err);
+    console.error("🚨 Failed to receive messages:", err);
   } finally {
     await receiver.close();
     await sbClient.close();
-    console.log("🔚 Receiver 和 Client 已关闭");
+    console.log("🔚 Receiver and Client closed");
   }
 }
 
 receiveMessages().catch((err) => {
-  console.error("🚨 未捕获的主流程错误：", err);
+  console.error("🚨 Uncaught error in main process:", err);
 });

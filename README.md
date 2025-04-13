@@ -1,28 +1,44 @@
-# Table of Contents
+# order-service
 
-1. [Prerequisites](#prerequisites)
-  
-2. [Get Environment Variables to Connect to Azure Service Bus](#get-environment-variables-to-connect-to-azure-service-bus)
-  
+## Table of Contents
 
-    - [Option 1: Using Azure CLI](#option-1-using-azure-cli)
+## Table of Contents
 
-    - [Option 2: Using Azure Portal](#option-2-using-azure-portal)
+1. [Prerequisites](#1-prerequisites)
+2. [Get Environment Variables to Connect to Azure Service Bus](#2-get-environment-variables-to-connect-to-azure-service-bus)
+  - [Option 1: Using Azure CLI](#21-option-1-using-azure-cli)
+    - [Step 1: Create a Resource Group](#211-step-1-create-a-resource-group)
+    - [Step 2: Create a Service Bus Namespace](#212-step-2-create-a-service-bus-namespace)
+    - [Step 3: Create a Queue](#213-step-3-create-a-queue)
+    - [Step 4: Choose an Authentication Method](#214-step-4-choose-an-authentication-method)
+      - [Option A: Shared Access Policy (Connection String)](#2141-option-a-shared-access-policy-connection-string)
+      - [Option B: Microsoft Entra Workload Identity (Recommended)](#2142-option-b-microsoft-entra-workload-identity-recommended)
+    - [Step 5: Retrieve Hostname for the Queue](#215-step-5-retrieve-hostname-for-the-queue)
+    - [Step 6: Save Environment Variables to a .env File](#216-step-6-save-environment-variables-to-a-env-file)
+  - [Option 2: Using Azure Portal](#22-option-2-using-azure-portal)
+    - [Step 1: Create a Resource Group](#221-step-1-create-a-resource-group)
+    - [Step 2: Create a Service Bus Namespace](#222-step-2-create-a-service-bus-namespace)
+    - [Step 3: Create a Queue](#223-step-3-create-a-queue)
+    - [Step 4: Choose an Authentication Method](#224-step-4-choose-an-authentication-method)
+      - [Option A: Shared Access Policy (Connection String)](#2241-option-a-shared-access-policy-connection-string)
+      - [Option B: Microsoft Entra Workload Identity (Managed Identity)](#2242-option-b-microsoft-entra-workload-identity-managed-identity)
+    - [Step 5: Retrieve Hostname for the Queue](#225-step-5-retrieve-hostname-for-the-queue)
+    - [Step 6: Save Environment Variables to a .env File](#226-step-6-save-environment-variables-to-a-env-file)
+3. [Load the Environment Variables](#3-load-the-environment-variables)
+4. [Running the App Locally](#4-running-the-app-locally)
+5. [Testing the API](#5-testing-the-api)
 
-3. [Running the App Locally](#running-the-app-locally)
-  
-4. [Testing the API](#testing-the-api)
-  
-5. [Summary of Required Environment Variables](#summary-of-required-environment-variables)
-  
-
-# order-service
+6. [Summary of Required Environment Variables](#6-summary-of-required-environment-variables)
+  - [6.1 Authentication](#61-authentication)
+  - [6.2 Queue Settings](#62-queue-settings)
+  - [6.3 Environment Configuration](#63-environment-configuration)
+  - [6.4 Optional Variables for Shared Access Policy Authentication](#64-optional-variables-for-shared-access-policy-authentication)
 
 This is a Fastify app that provides an API for submitting orders. It is meant to be used in conjunction with the store-front app.
 
 It is a simple REST API that allows you to add an order to a message queue that supports the AMQP 1.0 protocol.
 
-## Prerequisites
+## 1. Prerequisites
 
 - [Node.js](https://nodejs.org/en/download/)
   
@@ -33,11 +49,11 @@ It is a simple REST API that allows you to add an order to a message queue that 
 
 This app connect to Azure Service Bus using AMQP 1.0, and you will need to provide appropriate environment variables for connecting to the message queue.
 
-## Get environment variables to connect to Azure Service Bus
+## 2. Get environment variables to connect to Azure Service Bus
 
-### option 1: Using Azure CLI
+### 2.1 option 1: Using Azure CLI
 
-#### Step 1: Create a Resource Group
+#### 2.1.1 Step 1: Create a Resource Group
 
 To begin, create a resource group using the Azure CLI:
 
@@ -45,7 +61,7 @@ To begin, create a resource group using the Azure CLI:
 az group create --name <resource-group-name> --location <location>
 ```
 
-#### **🛠️Step 2: Create a Service Bus Namespace**
+#### 2.1.2 Step 2: Create a Service Bus Namespace
 
 Next, create a Service Bus namespace within the resource group:
 
@@ -53,7 +69,7 @@ Next, create a Service Bus namespace within the resource group:
 az servicebus namespace create --name <namespace-name> --resource-group <resource-group-name>
 ```
 
-#### **Step 3: Create a Queue**
+#### 2.1.3 Step 3: Create a Queue
 
 Create a queue named orders in the Service Bus namespace:
 
@@ -61,18 +77,17 @@ Create a queue named orders in the Service Bus namespace:
 az servicebus queue create --name orders --namespace-name <namespace-name> --resource-group <resource-group-name>
 ```
 
-#### **Step 4: Choose an Authentication Method**
+#### 2.1.4 Step 4: Choose an Authentication Method
 
 You have two options for authentication: Shared Access Policy or Microsoft Entra Workload Identity (passwordless authentication).
 
-##### **Option A: Shared Access Policy (Connection String)**
+##### 2.1.4.1 Option A: Shared Access Policy (Connection String)**
 
 1. Create a shared access policy with **Send** permission using Azure CLI:
-  
-  ```bash
-  az servicebus queue authorization-rule create --name sender --namespace-name <namespace-name> --resource-group <resource-group-name> --queue-name orders --rights Send
-  ```
-  
+
+```bash
+az servicebus queue authorization-rule create --name sender --namespace-name <namespace-name> --resource-group <resource-group-name> --queue-name orders --rights Send
+```
 
 2. Retrieve the **Primary Connection String** and **Primary Key** from the Azure Portal.
   
@@ -83,32 +98,29 @@ You have two options for authentication: Shared Access Policy or Microsoft Entra
 SERVICEBUS_CONNECTION_STRING=<your-connection-string>
 ```
 
-##### **Option B: Microsoft Entra Workload Identity (Recommended)**
+##### 2.1.4.2 Option B: Microsoft Entra Workload Identity (Recommended)**
 
 If you prefer a passwordless experience, use Managed Identity.
 
 1. Retrieve the objectId of the signed-in user:
-  
-  ```bash
-  PRINCIPALID=$(az ad signed-in-user show --query objectId -o tsv)
-  ```
-  
+
+```bash
+PRINCIPALID=$(az ad signed-in-user show --query objectId -o tsv)
+```
 
 2. Retrieve the id of the Service Bus namespace:
-  
-  ```bash
-  SERVICEBUSBID=$(az servicebus namespace show --name <namespace-name> --resource-group <resource-group-name> --query id -o tsv)
-  ```
-  
+
+```bash
+SERVICEBUSBID=$(az servicebus namespace show --name <namespace-name> --resource-group <resource-group-name> --query id -o tsv)
+```
 
 3. Assign the Azure Service Bus Data Sender role to your managed identity:
-  
-  ```bash
-  az role assignment create --role "Azure Service Bus Data Sender" --assignee $PRINCIPALID --scope $SERVICEBUSBID
-  ```
-  
 
-#### **Step 5: Retrieve Hostname for the Queue**
+```bash
+az role assignment create --role "Azure Service Bus Data Sender" --assignee $PRINCIPALID --scope $SERVICEBUSBID
+```
+
+#### 2.1.5 Step 5: Retrieve Hostname for the Queue
 
 Retrieve the hostname for the Azure Service Bus queue:
 
@@ -116,7 +128,7 @@ Retrieve the hostname for the Azure Service Bus queue:
 HOSTNAME=$(az servicebus namespace show --name <namespace-name> --resource-group <resource-group-name> --query serviceBusEndpoint -o tsv | sed 's/https:\/\///;s/:443\///')
 ```
 
-#### **Step 6: Save Environment Variables to a **.env** **File**
+#### 2.1.6 Step 6: Save Environment Variables to a **.env** **File**
 
 Save the necessary environment variables to a .env file:
 
@@ -128,11 +140,11 @@ ORDER_QUEUE_NAME=orders
 EOF
 ```
 
-### option 2 # Using Azure Portal
+### 2.2 option 2 # Using Azure Portal
 
 This guide walks you through setting up an Azure Service Bus namespace and a queue using the **Azure Portal**, and how to retrieve necessary environment variables and assign proper roles for authentication using **Microsoft Entra ID (formerly Azure AD)**.
 
-#### Step 1: Create a Resource Group
+#### 2.2.1 Step 1: Create a Resource Group
 
 1. Go to [https://portal.azure.com](https://portal.azure.com)
   
@@ -150,7 +162,7 @@ This guide walks you through setting up an Azure Service Bus namespace and a que
 
 5. Click **Review + Create** → **Create**
 
-#### Step 2: Create a Service Bus Namespace
+#### 2.2.2 Step 2: Create a Service Bus Namespace
 
 1. In the Portal search bar, type **"Service Bus"** and open the service.
   
@@ -172,7 +184,7 @@ This guide walks you through setting up an Azure Service Bus namespace and a que
 
 4. Click **Review + Create** → **Create**
 
-#### Step 3: Create a Queue
+#### 2.2.3 Step 3: Create a Queue
 
 1. Go to your **Service Bus Namespace** resource.
   
@@ -184,15 +196,14 @@ This guide walks you through setting up an Azure Service Bus namespace and a que
   
 
 - **Queue Name**: e.g., `orders`
-  
 
 5. Click **Create**
 
-#### Step 4: Choose an Authentication Method
+#### 2.2.4 Step 4: Choose an Authentication Method
 
 You have two options:
 
-##### Option A: Shared Access Policy (Connection String)
+##### 2.2.4.1 Option A: Shared Access Policy (Connection String)
 
 1. Go to the **Service Bus Namespace** → **Shared access policies**
   
@@ -207,7 +218,7 @@ You have two options:
 SERVICEBUS_CONNECTION_STRING=<your-connection-string>
 ```
 
-##### Option B (Recommended): Microsoft Entra Workload Identity (Managed Identity)
+##### 2.2.4.2 Option B (Recommended): Microsoft Entra Workload Identity (Managed Identity)
 
 1. Go to the **Service Bus Namespace** → **Access Control (IAM)**
   
@@ -217,7 +228,6 @@ SERVICEBUS_CONNECTION_STRING=<your-connection-string>
   
 
 - `Azure Service Bus Data Sender`
-  
 
 4. In **Assign access to**, choose **User, group, or service principal**
   
@@ -226,7 +236,7 @@ SERVICEBUS_CONNECTION_STRING=<your-connection-string>
 6. Click **Save**
   
 
-#### Step 5: Retrieve Hostname for the Queue
+#### 2.2.5 Step 5: Retrieve Hostname for the Queue
 
 1. Go to your **Service Bus Namespace**
   
@@ -260,7 +270,7 @@ HOSTNAME=$(az servicebus namespace show --name <namespace-name> --resource-group
 PASSWORD=$(az servicebus queue authorization-rule keys list --namespace-name <namespace-name> --resource-group <resource-group-name> --queue-name orders --name sender --query primaryKey -o tsv)
 ```
 
-#### **Step 6: Save Environment Variables to a **.env** **File
+#### **2.2.6 Step 6: Save Environment Variables to a .env** File
 
 Save the necessary environment variables to a .env file:
 
@@ -276,7 +286,7 @@ ORDER_QUEUE_NAME=orders
 EOF
 ```
 
-## load the environment variables
+## 3. load the environment variables
 
 To load the environment variables, run the following:
 
@@ -284,7 +294,7 @@ To load the environment variables, run the following:
 source .env
 ```
 
-## Running the app locally
+## 4. Running the app locally
 
 To run the app, run the following command:
 
@@ -302,47 +312,68 @@ When the app is running, you should see output similar to the following:
 [1687920999327] INFO (108877 on yubuntu): Server listening at http://127.0.0.1:3000
 ```
 
-## Testing the API
+## 5. Testing the API
 
 Using the [`test-order-service.http`](./test-order-service.http) file in the root of the repo, you can test the API. However, you will need to use VS Code and have the [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) extension installed.
 
 To view the order messages in RabbitMQ, open a browser and navigate to [http://localhost:15672](http://localhost:15672). Log in with the username and password you provided in the environment variables above. Then click on the **Queues** tab and click on your **orders** queue. After you've submitted a few orders, you should see the messages in the queue.
 
-## Summary of Required Environment Variables
+## 6. Summary of Required Environment Variables
 
-### 1. **Authentication**
+### 6.1 Authentication
 
-| **Variable Name**              | **Description**                                                           | **Value Example**                         |
+| **Variable Name** | **Description** | **Value Example** |
+
 | ------------------------------ | ------------------------------------------------------------------------- | ----------------------------------------- |
-| `USE_WORKLOAD_IDENTITY_AUTH`   | Set to `true` to use Microsoft Entra Workload Identity for authentication | `true`                                    |
-| `SERVICEBUS_CONNECTION_STRING` | Connection string for Service Bus if using Shared Access Policy           | `<your-connection-string>`                |
-| `ORDER_QUEUE_USERNAME`         | Username for connecting to the queue                                      | `sender`                                  |
-| `ORDER_QUEUE_PASSWORD`         | Password for queue connection                                             | `<your-primary-key>`                      |
-| `ORDER_QUEUE_HOSTNAME`         | Hostname of the Service Bus queue                                         | `<namespace-name>.servicebus.windows.net` |
-| `ORDER_QUEUE_TRANSPORT`        | Protocol for queue connection                                             | `tls`                                     |
-| `ORDER_QUEUE_RECONNECT_LIMIT`  | Limit of reconnections                                                    | `10`                                      |
 
-### 2. **Queue Settings**
+| `USE_WORKLOAD_IDENTITY_AUTH` | Set to `true` to use Microsoft Entra Workload Identity for authentication | `true` |
 
-| **Variable Name**                          | **Description**                           | **Value Example** |
+| `SERVICEBUS_CONNECTION_STRING` | Connection string for Service Bus if using Shared Access Policy | `<your-connection-string>` |
+
+| `ORDER_QUEUE_USERNAME` | Username for connecting to the queue | `sender` |
+
+| `ORDER_QUEUE_PASSWORD` | Password for queue connection | `<your-primary-key>` |
+
+| `ORDER_QUEUE_HOSTNAME` | Hostname of the Service Bus queue | `<namespace-name>.servicebus.windows.net` |
+
+| `ORDER_QUEUE_TRANSPORT` | Protocol for queue connection | `tls` |
+
+| `ORDER_QUEUE_RECONNECT_LIMIT` | Limit of reconnections | `10` |
+
+### 6.2 Queue Settings
+
+| **Variable Name** | **Description** | **Value Example** |
+
 | ------------------------------------------ | ----------------------------------------- | ----------------- |
-| `AZURE_SERVICEBUS_FULLYQUALIFIEDNAMESPACE` | Fully qualified namespace for Service Bus | `<hostname>`      |
-| `ORDER_QUEUE_NAME`                         | The name of the queue                     | `orders`          |
-| `ORDER_QUEUE_PORT`                         | Port for connecting to the queue          | `5671`            |
 
-### 3. **Environment Configuration**
+| `AZURE_SERVICEBUS_FULLYQUALIFIEDNAMESPACE` | Fully qualified namespace for Service Bus | `<hostname>` |
 
-| **Variable Name**            | **Description**                          | **Value Example** |
+| `ORDER_QUEUE_NAME` | The name of the queue | `orders` |
+
+| `ORDER_QUEUE_PORT` | Port for connecting to the queue | `5671` |
+
+### 6.3 Environment Configuration
+
+| **Variable Name** | **Description** | **Value Example** |
+
 | ---------------------------- | ---------------------------------------- | ----------------- |
-| `USE_WORKLOAD_IDENTITY_AUTH` | Set to `true` for workload identity auth | `true`            |
 
-### 4. **Optional Variables for Shared Access Policy Authentication**
+| `USE_WORKLOAD_IDENTITY_AUTH` | Set to `true` for workload identity auth | `true` |
 
-| **Variable Name**              | **Description**                                                             | **Value Example**                         |
+#### 6.4 Optional Variables for Shared Access Policy Authentication
+
+| **Variable Name** | **Description** | **Value Example** |
+
 | ------------------------------ | --------------------------------------------------------------------------- | ----------------------------------------- |
-| `SERVICEBUS_CONNECTION_STRING` | The connection string for the Service Bus (when using Shared Access Policy) | `<your-connection-string>`                |
-| `ORDER_QUEUE_USERNAME`         | Username for connecting to the queue                                        | `sender`                                  |
-| `ORDER_QUEUE_PASSWORD`         | Password for the queue connection                                           | `<your-primary-key>`                      |
-| `ORDER_QUEUE_HOSTNAME`         | Hostname for the queue                                                      | `<namespace-name>.servicebus.windows.net` |
-| `ORDER_QUEUE_TRANSPORT`        | Transport protocol for queue connection                                     | `tls`                                     |
-| `ORDER_QUEUE_RECONNECT_LIMIT`  | Maximum number of reconnections allowed                                     | `10`                                      |
+
+| `SERVICEBUS_CONNECTION_STRING` | The connection string for the Service Bus (when using Shared Access Policy) | `<your-connection-string>` |
+
+| `ORDER_QUEUE_USERNAME` | Username for connecting to the queue | `sender` |
+
+| `ORDER_QUEUE_PASSWORD` | Password for the queue connection | `<your-primary-key>` |
+
+| `ORDER_QUEUE_HOSTNAME` | Hostname for the queue | `<namespace-name>.servicebus.windows.net` |
+
+| `ORDER_QUEUE_TRANSPORT` | Transport protocol for queue connection | `tls` |
+
+| `ORDER_QUEUE_RECONNECT_LIMIT` | Maximum number of reconnections allowed | `10` |
